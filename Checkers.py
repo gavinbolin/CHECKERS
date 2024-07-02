@@ -35,7 +35,7 @@ symbols = ['.', 'X', 'O']
 class Game:
     def __init__(self, player1, player2, time, interactive):
         self.players = [player1, player2]
-        self.colors = ['blue', 'purple']
+        self.colors = ['blue', 'red', 'gray']
         self.current_turn = 0
         self.board = np.zeros([8,8]).astype(np.uint8)
         self.gui_board = []
@@ -80,6 +80,8 @@ class Game:
             self.update_board(None, [0,i], 2)
             self.update_board(None, [1,i+1], 2)
             self.update_board(None, [2,i], 2)
+            self.update_board(None, [3,i+1],0)
+            self.update_board(None, [4,i],0)
             self.update_board(None, [5,i+1], 1)
             self.update_board(None, [6,i], 1)
             self.update_board(None, [7,i+1], 1)
@@ -149,6 +151,8 @@ class Game:
                         self.update_board([0,0], [piece[0]-1,piece[1]-1], other_player)
                     else:
                         self.update_board([-1,-1], piece, current_player.player_number)
+                # if there is another piece to take after one then include option.
+                # make pieces only go forward if not kings, create king pieces...
 
 
             # Determine game state (WIN/LOSS/TIE)
@@ -186,7 +190,7 @@ class Game:
                 self.board[piece[0]][piece[1]] = 0
                 if self.interactive:
                     if graphics:
-                        self.c.itemconfig(self.gui_board[piece[1]][piece[0]], fill='white')
+                        self.c.itemconfig(self.gui_board[piece[1]][piece[0]], fill=self.colors[2])
                     else:
                         self.print_board()
         # Move current piece
@@ -200,7 +204,7 @@ class Game:
                 self.board[piece[0]][piece[1]] = 0
                 if self.interactive:
                     if graphics:
-                        self.c.itemconfig(self.gui_board[piece[1]][piece[0]], fill='white')
+                        self.c.itemconfig(self.gui_board[piece[1]][piece[0]], fill=self.colors[2])
                     else:
                         self.print_board()
         # Create piece

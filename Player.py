@@ -49,7 +49,7 @@ class RandomPlayer:
             if valid:
                 break
         val_move = random.choice(valid)
-        print('NOVE::', val_move)
+        print('MOVE::', val_move)
         return val_move, [r,c]
 
 class HumanPlayer:

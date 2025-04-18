@@ -359,7 +359,7 @@ def get_pieces(board, p):
     # print(board)
     for r in range(board.shape[0]):
         for c in range(board.shape[1]):
-            if board[r,c] == p:
+            if (board[r,c] == p) or (board[r,c] == p+2):
                 pieces.append([r,c])
     return pieces
 
@@ -370,7 +370,7 @@ def get_available_moves(board, piece):
         return None
 
     # SE (+,+)
-    if piece[0]+1 <= 7 and piece[1]+1 <= 7:
+    if (piece[0]+1 <= 7 and piece[1]+1 <= 7) and (board[piece[0]][piece[1]] != 1): 
         if board[piece[0]+1][piece[1]+1] == 0:
             valid.append('se')
         elif piece[0]+2 <= 7 and piece[1]+2 <= 7 and board[piece[0]+1][piece[1]+1] != board[piece[0]][piece[1]]:
@@ -378,7 +378,7 @@ def get_available_moves(board, piece):
                 valid.append('se')
 
     # SW (+,-)
-    if piece[0]+1 <= 7 and piece[1]-1 >= 0:
+    if (piece[0]+1 <= 7 and piece[1]-1 >= 0) and (board[piece[0]][piece[1]] != 1):
         if board[piece[0]+1][piece[1]-1] == 0:
             valid.append('sw')
         elif piece[0]+2 <= 7 and piece[1]-2 >= 0  and board[piece[0]+1][piece[1]-1] != board[piece[0]][piece[1]]:
@@ -386,7 +386,7 @@ def get_available_moves(board, piece):
                 valid.append('sw')
 
     # NE (-,+)
-    if piece[0]-1 >= 0 and piece[1]+1 <= 7:
+    if (piece[0]-1 >= 0 and piece[1]+1 <= 7) and (board[piece[0]][piece[1]] != 2):
         if board[piece[0]-1][piece[1]+1] == 0:
             valid.append('ne')
         elif piece[0] - 2 <= 7 and piece[1] + 2 <= 7  and board[piece[0]-1][piece[1]+1] != board[piece[0]][piece[1]]:
@@ -394,7 +394,7 @@ def get_available_moves(board, piece):
                 valid.append('ne')
 
     # NW (-,-)
-    if piece[0]-1 >= 0 and piece[1]-1 >= 0:
+    if (piece[0]-1 >= 0 and piece[1]-1 >= 0) and (board[piece[0]][piece[1]] != 2):
         if board[piece[0]-1][piece[1]-1] == 0:
             valid.append('nw')
         elif piece[0]-2 <= 7 and piece[1]-2 <= 7  and board[piece[0]-1][piece[1]-1] != board[piece[0]][piece[1]]:

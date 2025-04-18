@@ -35,7 +35,7 @@ symbols = ['.', 'X', 'O']
 class Game:
     def __init__(self, player1, player2, time, interactive):
         self.players = [player1, player2]
-        self.colors = ['blue', 'red', 'gray']
+        self.colors = ['blue', 'red', 'purple', 'orange', 'gray']
         self.current_turn = 0
         self.board = np.zeros([8,8]).astype(np.uint8)
         self.gui_board = []
@@ -47,7 +47,7 @@ class Game:
 
         global graphics
         if not interactive:
-            graphics = False
+            graphics = True
 
         if graphics:
             #https://stackoverflow.com/a/38159672
@@ -190,7 +190,7 @@ class Game:
                 self.board[piece[0]][piece[1]] = 0
                 if self.interactive:
                     if graphics:
-                        self.c.itemconfig(self.gui_board[piece[1]][piece[0]], fill=self.colors[2])
+                        self.c.itemconfig(self.gui_board[piece[1]][piece[0]], fill=self.colors[4])
                     else:
                         self.print_board()
         # Move current piece
@@ -202,11 +202,29 @@ class Game:
                     else:
                         self.print_board()
                 self.board[piece[0]][piece[1]] = 0
-                if self.interactive:
+
+                # Checks for queens
+                if piece[1] == 7 and player_num == 1:  
+                    self.board[piece[0] + move[0]][piece[1] + move[1]] = 3
+                    self.board[piece[0] + move[0]][piece[1] + move[1]] = 4
                     if graphics:
-                        self.c.itemconfig(self.gui_board[piece[1]][piece[0]], fill=self.colors[2])
+                        self.c.itemconfig(self.gui_board[piece[1] + move[1]][piece[0] + move[0]], fill=self.colors[player_num+1])
                     else:
                         self.print_board()
+                if piece[1] == 0 and player_num == 2: 
+                    self.board[piece[0] + move[0]][piece[1] + move[1]] = 4
+                    if graphics:
+                        self.c.itemconfig(self.gui_board[piece[1] + move[1]][piece[0] + move[0]], fill=self.colors[player_num+1])
+                    else:
+                        self.print_board()
+
+                if self.interactive:
+                    if graphics:
+                        self.c.itemconfig(self.gui_board[piece[1]][piece[0]], fill=self.colors[4])
+                        print("YEEEEHAW")
+                    else:
+                        self.print_board()
+
         # Create piece
         else:
             self.board[piece[0]][piece[1]] = player_num
@@ -223,8 +241,12 @@ class Game:
                 if self.board[r,c] == 0:
                     print(' . ', end="")
                 elif self.board[r,c] == 1:
-                    print(' X ', end="")
+                    print(' x ', end="")
                 elif self.board[r,c] == 2:
+                    print(' o ', end="")
+                elif self.board[r,c] == 3:
+                    print(' X ', end="")
+                elif self.board[r,c] == 4:
                     print(' O ', end="")
             print(' ')
 
@@ -245,7 +267,7 @@ class Game:
         other = 2
         if player_num == 2:
             other = 1
-        if (player_num in self.board) and other not in self.board:
+        if (player_num in self.board and player_num+2 in self.board) and (other not in self.board and other+2 not in self.board):
             return True
         else:
             return False

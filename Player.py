@@ -82,14 +82,26 @@ class HumanPlayer:
         print(pieces)
         r = int(input('Choose piece row:: '))
         c = int(input('Choose piece colum:: '))
-        while board[r,c] != self.player_number:
+        valid = None
+        while board[r,c] != self.player_number or board[r,c] != self.player.nummber+2:
             r = int(input('Incorrect Input, choose, piece row::'))
             c = int(input('Choose, piece col::'))
-
-        print('Available moves::')
+            
+        # print('Available moves::')
+        # valid = get_available_moves(board, [r,c])
+        # print(valid)
+        # if valid == None: 
         valid = get_available_moves(board, [r,c])
-        print(valid)
-        val_move = input('Choose available move::')
+        val_move = ""
+        if valid != None:   
+            print("Moves:: ", valid) 
+            val_move = input("Choose available move:: " )
+        else: 
+            print("No valid moves for piece, please select another piece.")
+
+            
+                
+        # val_move = input('Choose available move::')
         while val_move not in valid:
             val_move = input('Incorrect input, choose available move::')
         return val_move, [r,c]

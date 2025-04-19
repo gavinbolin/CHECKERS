@@ -4,6 +4,10 @@
 #  - pass command line param string to each AI
 #  - bypass tkinter when it doesn't exist, as that has proven problematic for some users
 
+# TODO
+# - ability to cancel selection of piece if it doesnt have any moves
+# - track and update queen pieces
+
 # system libs
 import argparse
 import multiprocessing as mp
@@ -72,6 +76,7 @@ class Game:
         else:
             if interactive:
                 self.print_board()
+            self.start_state()
             self.gameloop()
 
     def start_state(self):
@@ -204,14 +209,13 @@ class Game:
                 self.board[piece[0]][piece[1]] = 0
 
                 # Checks for queens
-                if piece[1] == 7 and player_num == 1:  
+                if (piece[0] + move[0] == 0) and player_num == 1:  
                     self.board[piece[0] + move[0]][piece[1] + move[1]] = 3
-                    self.board[piece[0] + move[0]][piece[1] + move[1]] = 4
                     if graphics:
                         self.c.itemconfig(self.gui_board[piece[1] + move[1]][piece[0] + move[0]], fill=self.colors[player_num+1])
                     else:
                         self.print_board()
-                if piece[1] == 0 and player_num == 2: 
+                if (piece[0] + move[0] == 7) and player_num == 2: 
                     self.board[piece[0] + move[0]][piece[1] + move[1]] = 4
                     if graphics:
                         self.c.itemconfig(self.gui_board[piece[1] + move[1]][piece[0] + move[0]], fill=self.colors[player_num+1])
@@ -221,7 +225,6 @@ class Game:
                 if self.interactive:
                     if graphics:
                         self.c.itemconfig(self.gui_board[piece[1]][piece[0]], fill=self.colors[4])
-                        print("YEEEEHAW")
                     else:
                         self.print_board()
 

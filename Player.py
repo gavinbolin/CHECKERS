@@ -1,13 +1,50 @@
-#Modified 10.3.2023 by Chris Archibald to
-#  - incorporate MCTS with other code
-#  - pass command line param string to each AI
-import random
-
 import numpy as np
+import random
 import time
+import json
 from collections import namedtuple
+from Utility import Utility
 
+###############################################################################
+##################################  HUMAN  ####################################
+###############################################################################
+class HumanPlayer:
+    def __init__(self, player_number):
+        self.player_number = player_number
+        self.type = 'human'
+        self.name = 'human'
+        self.player_string = 'Player {}: human'.format(player_number)
 
+    def get_move(self, board):
+        print('Available pieces::')
+        pieces = get_pieces(board, self.player_number)
+        print(pieces)
+        r = -1
+        c = -1 
+        while (r < 0 or r > 7):
+            r = int(input("Choose piece row:: "))
+        while (c < 0 or c > 7):
+            c = int(input("Choose piece column:: "))
+        valid = None
+        while (board[r,c] != self.player_number) and (board[r,c] != self.player_number+2):
+            r = int(input('Incorrect Input, choose, piece row::'))
+            c = int(input('Choose, piece col::'))
+        valid = get_available_moves(board, [r,c])
+        val_move = ""
+        if valid != None:   
+            print("Moves:: ", valid) 
+            val_move = input("Choose available move:: " )
+        else: 
+            print("No valid moves for piece, please select another piece.")
+
+        while val_move not in valid:
+            val_move = input('Incorrect input, choose available move::')
+        return val_move, [r,c]
+    
+
+###############################################################################
+##################################  RANDOM  ###################################
+###############################################################################
 class RandomPlayer:
     def __init__(self, player_number):
         self.player_number = player_number
@@ -16,25 +53,7 @@ class RandomPlayer:
         self.player_string = 'Player {}: random'.format(player_number)
 
     def get_move(self, board):
-        """
-        Given the current board state select a random column from the available
-        valid moves.
-
-        INPUTS:
-        board - a numpy array containing the state of the board using the
-                following encoding:
-                - the board maintains its same two dimensions
-                    - row 0 is the top of the board and so is
-                      the last row filled
-                - spaces that are unoccupied are marked as 0
-                - spaces that are occupied by player 1 have a 1 in them
-                - spaces that are occupied by player 2 have a 2 in them
-
-        RETURNS:
-        The 0 based index of the column that represents the next move
-        """
-
-        count = 1
+        count = 0
         while count > 0:
             time.sleep(.1)
             count -=1
@@ -52,100 +71,88 @@ class RandomPlayer:
         print('MOVE::', val_move)
         return val_move, [r,c]
 
-class HumanPlayer:
-    def __init__(self, player_number):
+
+###############################################################################
+################################  PERCEPTRON  #################################
+###############################################################################
+class Perceptron:
+    def __init__(self, ptype, name, player_number, param):
         self.player_number = player_number
-        self.type = 'human'
-        self.name = 'human'
-        self.player_string = 'Player {}: human'.format(player_number)
-
-    def get_move(self, board):
-        """
-        Given the current board state returns the human input for next move
-
-        INPUTS:
-        board - a numpy array containing the state of the board using the
-                following encoding:
-                - the board maintains its same two dimensions
-                    - row 0 is the top of the board and so is
-                      the last row filled
-                - spaces that are unoccupied are marked as 0
-                - spaces that are occupied by player 1 have a 1 in them
-                - spaces that are occupied by player 2 have a 2 in them
-
-        RETURNS:
-        The 0 based index of the column that represents the next move
-        """
-
-        print('Available pieces::')
-        pieces = get_pieces(board, self.player_number)
-        print(pieces)
-        r = int(input('Choose piece row:: '))
-        c = int(input('Choose piece colum:: '))
-        valid = None
-        while board[r,c] != self.player_number or board[r,c] != self.player.nummber+2:
-            r = int(input('Incorrect Input, choose, piece row::'))
-            c = int(input('Choose, piece col::'))
-            
-        # print('Available moves::')
-        # valid = get_available_moves(board, [r,c])
-        # print(valid)
-        # if valid == None: 
-        valid = get_available_moves(board, [r,c])
-        val_move = ""
-        if valid != None:   
-            print("Moves:: ", valid) 
-            val_move = input("Choose available move:: " )
-        else: 
-            print("No valid moves for piece, please select another piece.")
-
-            
-                
-        # val_move = input('Choose available move::')
-        while val_move not in valid:
-            val_move = input('Incorrect input, choose available move::')
-        return val_move, [r,c]
-
-
-class AIPlayer:
-    def __init__(self, player_number, name, ptype, param):
-        self.player_number = player_number
+        self.enum = 1 if player_number == 2 else 2
         self.name = name
         self.type = ptype
         self.player_string = 'Player {}: '.format(player_number) + self.name
-        self.other_player_number = 1 if player_number == 2 else 2
+        self.u = Utility(None, None, None, None, None)
 
-        # MCTS
-        self.max_iterations = 1000  # Default max-iterations for MCTS - change if you desire
-        # Example of using command line param to overwrite max-iterations for MCTS
-        if self.type == 'mcts' and param:
-            self.max_iterations = int(param)
+        self.weights = np.random.randn(64) * 0.01
+        self.bias = 0.0
+        self.learning_rate = 0.01
 
-    def get_mcts_move(self, board):
-        """
-        Use MCTS to get the next move
-        """
-        # How many iterations of MCTS will we do?
-        max_iterations = 10
+    def get_move(self, board):
+        pieces = get_pieces(board, self.player_number)
+        move = None 
+        piece = None
+        best = -float('inf')
+        for p in pieces: 
+            temp_board = np.zeros([8,8]).astype(np.uint8)
+            temp_board = board.copy()
+            valid = get_available_moves(board, p)
+            for m in valid:
+                self.u.execute_move(temp_board, m, p, self.player_number)
+                features = self.extract_features(board)
+                print(self.weights)
+                score = self.predict(features)
+                if score > best:
+                    best = score
+                    piece = p
+                    move = m
+        return move, piece
+    
+    def predict(self, x): 
+        return np.dot(x, self.weights) + self.bias
+    
+    def train(self, x, target):
+        pred = self.predict(x)
+        error = target - pred
+        self.weights += self.learning_rate * error * x
+        self.bias += self.learning_rate * error 
 
-        # Make the MCTS root node from the current board state
-        root = MCTSNode(board, self.player_number, None, None)
+    def extract_features(self, board):
+        if not isinstance(board, np.ndarray) or board.shape != (8, 8):
+            raise ValueError(f"Expected 2D board with shape (8, 8), got {type(board)} with shape {getattr(board, 'shape', None)}")
+        features = np.zeros(64, dtype=float)
+        board_flat = board.flatten()
+        features[board_flat == self.player_number] = 1
+        features[board_flat == self.player_number+2] = 2  
+        features[board_flat == self.enum] = -0.5
+        features[board_flat == self.enum+2] = -1
+        return features
+    
+# def save_weights(self, filename="perceptron_weights.json"):
+#     with open(filename, 'w') as f:
+#         json.dump({'weights': self.weights.tolist(), 'bias': float(self.bias)}, f)
+#         print(f"Weights saved to {filename}")
 
-        # Run our MCTS iterations
-        for i in range(max_iterations):
-            # Select + Expand
-            cur_node = root.select()
-            # Simulate + backpropate
-            cur_node.simulate()
-            print(cur_node.board)
+# def load_weights(self, filename="perceptron_weights.json"):
+#     try:
+#         with open(filename, 'r') as f:
+#             data = json.load(f)
+#             self.weights = np.array(data['weights'])
+#             self.bias = data['bias']
+#         print(f"Weights loaded from {filename}")
+#     except FileNotFoundError:
+#         print(f"File {filename} not found.")
+#     except Exception as e:
+#         print(f"Error loading weights: {e}")
+        
 
-        # Print out the info from the root node
-        root.print_node()
-        print('MCTS chooses action', root.max_child())
-        return root.max_child()
+###############################################################################
+###################################  MCTS  ####################################
+###############################################################################
+class AIPlayer:
+    def func(): 
+        return
 
-
-#CODE FOR MCTS 
 class MCTSNode:
     def __init__(self, board, player_number, parent, piece):
         self.board = board
@@ -284,34 +291,7 @@ class MCTSNode:
         self.parent.back(result)
         return result
 
-        # Pseudocode in comments:
-        #################################
-        # If this state is terminal (meaning the game is over) AND it is a winning state for self.other_player_number
-        #   Then we are done and the result is 1 (since this is from parent's perspective)
-        #
-        # Else-if this state is terminal AND is a winning state for self.player_number
-        #   Then we are done and the result is -1 (since this is from parent's perspective)
-        #
-        # Else-if this is not a terminal state (if it is terminal and a tie (no-one won, then result is 0))
-        #   Then we need to perform the random rollout
-        #      1. Make a copy of the board to modify
-        #      2. Keep track of which player's turn it is (first turn is current nodes self.player_number)
-        #      3. Until the game is over: 
-        #            3.1  Make a random move for the player who's turn it is
-        #            3.2  Check to see if someone won or the game ended in a tie 
-        #                 (Hint: you can check for a tie if there are no more valid moves)
-        #            3.3  If the game is over, store the result
-        #            3.4  If game is not over, change the player and continue the loop
-        #
-        # Update this node's total reward (self.w) and visit count (self.n) values to reflect this visit and result
-
-
-        # Back-propagate this result
-        # You do this by calling back on the parent of this node with the result of this simulation
-        #    This should look like: self.parent.back(result)
-        # Tip: you need to negate the result to account for the fact that the other player
-        #    is the actor in the parent node, and so the scores will be from the opposite perspective
-
+        
     def rollout(self, board, player):
         p = player
         temp = np.copy(board)
@@ -353,8 +333,84 @@ class MCTSNode:
         if self.parent is not None:
             self.parent.back(-score) #Score inverted before passing along
 
+    #This function will modify the board according to 
+    #player_number moving into move column
+    def ai_move(board, piece, move, player_number):
+        # piece = mv[0]
+        # move = mv[1]
+        other_player = 2 if player_number == 1 else 1
+        if move is not None:  # Remove attacked piece???
+            if move == 'se':
+                if board[piece[0] + 1][piece[1] + 1] == other_player and board[piece[0] + 2][piece[1] + 2] == 0:
+                    board = update(board, [2, 2], piece, player_number)
+                    board = update(board, [0, 0], [piece[0] + 1, piece[1] + 1], other_player)
+                else:
+                    board = update(board, [1, 1], piece, player_number)
+            if move == 'sw':
+                if board[piece[0] + 1][piece[1] - 1] == other_player and board[piece[0] + 2][piece[1] - 2] == 0:
+                    board = update(board, [2, -2], piece, player_number)
+                    board = update(board, [0, 0], [piece[0] + 1, piece[1] - 1], other_player)
+                else:
+                    board = update(board, [1, -1], piece, player_number)
+            if move == 'ne':
+                if board[piece[0] - 1][piece[1] + 1] == other_player and board[piece[0] - 2][piece[1] + 2] == 0:
+                    board = update(board, [-2, 2], piece, player_number)
+                    board = update(board, [0, 0], [piece[0] - 1, piece[1] + 1], other_player)
+                else:
+                    board = update(board, [-1, 1], piece, player_number)
+            if move == 'nw':
+                if board[piece[0] - 1][piece[1] - 1] == other_player and board[piece[0] - 2][piece[1] - 2] == 0:
+                    board = update(board, [-2, -2], piece, player_number)
+                    board = update(board, [0, 0], [piece[0] - 1, piece[1] - 1], other_player)
+                else:
+                    board = update(board, [-1, -1], piece, player_number)
+            return board
 
-#UTILITY FUNCTIONS
+
+    def update(board, move, piece, p):
+        if move:
+            if move == [0,0]:
+                board[piece[0]][piece[1]] = 0
+            else:
+                board[piece[0]+move[0]][piece[1]+move[1]] = p
+                board[piece[0]][piece[1]] = 0
+        else:
+            board[piece[0]][piece[1]] = p
+        return board
+    
+    # Pseudocode in comments:
+    #################################
+    # If this state is terminal (meaning the game is over) AND it is a winning state for self.other_player_number
+    #   Then we are done and the result is 1 (since this is from parent's perspective)
+    #
+    # Else-if this state is terminal AND is a winning state for self.player_number
+    #   Then we are done and the result is -1 (since this is from parent's perspective)
+    #
+    # Else-if this is not a terminal state (if it is terminal and a tie (no-one won, then result is 0))
+    #   Then we need to perform the random rollout
+    #      1. Make a copy of the board to modify
+    #      2. Keep track of which player's turn it is (first turn is current nodes self.player_number)
+    #      3. Until the game is over: 
+    #            3.1  Make a random move for the player who's turn it is
+    #            3.2  Check to see if someone won or the game ended in a tie 
+    #                 (Hint: you can check for a tie if there are no more valid moves)
+    #            3.3  If the game is over, store the result
+    #            3.4  If game is not over, change the player and continue the loop
+    #
+    # Update this node's total reward (self.w) and visit count (self.n) values to reflect this visit and result
+
+
+    # Back-propagate this result
+    # You do this by calling back on the parent of this node with the result of this simulation
+    #    This should look like: self.parent.back(result)
+    # Tip: you need to negate the result to account for the fact that the other player
+    #    is the actor in the parent node, and so the scores will be from the opposite perspective
+
+
+
+###############################################################################
+##############################  UTIL FUNCTIONS  ###############################
+###############################################################################
 
 def digitize(move):
     if move == 'ne':
@@ -417,94 +473,3 @@ def get_available_moves(board, piece):
     if valid is None:
         print("No valid moves, choose a different piece.")
     return valid
-
-#This function will modify the board according to 
-#player_number moving into move column
-def ai_move(board, piece, move, player_number):
-    # piece = mv[0]
-    # move = mv[1]
-    other_player = 2 if player_number == 1 else 1
-    if move is not None:  # Remove attacked piece???
-        if move == 'se':
-            if board[piece[0] + 1][piece[1] + 1] == other_player and board[piece[0] + 2][piece[1] + 2] == 0:
-                board = update(board, [2, 2], piece, player_number)
-                board = update(board, [0, 0], [piece[0] + 1, piece[1] + 1], other_player)
-            else:
-                board = update(board, [1, 1], piece, player_number)
-        if move == 'sw':
-            if board[piece[0] + 1][piece[1] - 1] == other_player and board[piece[0] + 2][piece[1] - 2] == 0:
-                board = update(board, [2, -2], piece, player_number)
-                board = update(board, [0, 0], [piece[0] + 1, piece[1] - 1], other_player)
-            else:
-                board = update(board, [1, -1], piece, player_number)
-        if move == 'ne':
-            if board[piece[0] - 1][piece[1] + 1] == other_player and board[piece[0] - 2][piece[1] + 2] == 0:
-                board = update(board, [-2, 2], piece, player_number)
-                board = update(board, [0, 0], [piece[0] - 1, piece[1] + 1], other_player)
-            else:
-                board = update(board, [-1, 1], piece, player_number)
-        if move == 'nw':
-            if board[piece[0] - 1][piece[1] - 1] == other_player and board[piece[0] - 2][piece[1] - 2] == 0:
-                board = update(board, [-2, -2], piece, player_number)
-                board = update(board, [0, 0], [piece[0] - 1, piece[1] - 1], other_player)
-            else:
-                board = update(board, [-1, -1], piece, player_number)
-        return board
-
-
-def update(board, move, piece, p):
-    if move:
-        if move == [0,0]:
-            board[piece[0]][piece[1]] = 0
-        else:
-            board[piece[0]+move[0]][piece[1]+move[1]] = p
-            board[piece[0]][piece[1]] = 0
-    else:
-        board[piece[0]][piece[1]] = p
-    return board
-
-
-
-#This function will return a list of valid moves for the given board
-# def get_valid_moves(board):
-#     valid_moves = []
-#     for c in range(7):
-#         if 0 in board[:,c]:
-#             valid_moves.append(c)
-#     return valid_moves
-
-#This function returns true if player_num is winning on board
-# def is_winning_state(board, player_num):
-#     # player_win_str = '{0}{0}{0}{0}'.format(player_num)
-#     # to_str = lambda a: ''.join(a.astype(str))
-#     #
-#     # def check_horizontal(b):
-#     #     for row in b:
-#     #         if player_win_str in to_str(row):
-#     #             return True
-#     #     return False
-#     #
-#     # def check_verticle(b):
-#     #     return check_horizontal(b.T)
-#     #
-#     # def check_diagonal(b):
-#     #     for op in [None, np.fliplr]:
-#     #         op_board = op(b) if op else b
-#     #
-#     #         root_diag = np.diagonal(op_board, offset=0).astype(int)
-#     #         if player_win_str in to_str(root_diag):
-#     #             return True
-#     #
-#     #         for i in range(1, b.shape[1]-3):
-#     #             for offset in [i, -i]:
-#     #                 diag = np.diagonal(op_board, offset=offset)
-#     #                 diag = to_str(diag.astype(int))
-#     #                 if player_win_str in diag:
-#     #                     return True
-#     #
-#     #     return False
-#     #
-#     # return (check_horizontal(board) or
-#     #         check_verticle(board) or
-#     #         check_diagonal(board))
-
